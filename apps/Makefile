@@ -34,12 +34,14 @@ PCFLAGS = -fopenmp -O3 -DOPENMP $(INTT) $(INTE) $(CODE) $(PD)
 
 else
 PCC = g++
-PCFLAGS = -O2 $(INTT) $(INTE) $(CODE) $(PD)
+PCFLAGS = -O3 -std=c++11 $(INTT) $(INTE) $(CODE) $(PD)
+
 endif
 
 COMMON= ligra.h graph.h compressedVertex.h vertex.h utils.h IO.h parallel.h gettime.h quickSort.h blockRadixSort.h transpose.h parseCommandLine.h byte.h byteRLE.h nibble.h byte-pd.h byteRLE-pd.h nibble-pd.h vertexSubset.h encoder.C
 
-ALL= encoder BFS BC BellmanFord Components Radii PageRank PageRankDelta BFSCC BFS-Bitvector KCore MIS Triangle CF
+#ALL= encoder BFS BC BellmanFord Components Radii PageRank PageRankDelta BFSCC BFS-Bitvector KCore MIS Triangle CF
+ALL=MCE
 
 all: $(ALL)
 
@@ -57,3 +59,4 @@ clean :
 cleansrc :
 	rm -f *.o $(ALL)
 	rm $(COMMON)
+

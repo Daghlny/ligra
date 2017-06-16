@@ -546,5 +546,5 @@ int parallel_main(int argc, char* argv[]) {
   bool symmetric = P.getOptionValue("-s");
   bool weighted = P.getOptionValue("-w");
   if(!weighted) encodeGraphFromFile(iFile,symmetric,outFile,binary);
-  else encodeWeightedGraphFromFile(iFile,symmetric,outFile,binary);
+  else          encodeWeightedGraphFromFile(iFile,symmetric,outFile,binary);
 }

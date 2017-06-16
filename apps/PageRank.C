@@ -38,7 +38,8 @@ struct PR_F {
     writeAdd(&p_next[d],p_curr[s]/V[s].getOutDegree());
     return 1;
   }
-  inline bool cond (intT d) { return cond_true(d); }};
+  inline bool cond (intT d) { return cond_true(d); }
+};
 
 //vertex map function to update its p value according to PageRank equation
 struct PR_Vertex_F {

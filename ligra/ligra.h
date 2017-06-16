@@ -122,17 +122,13 @@ vertexSubset edgeMap(graph<vertex> GA, vertexSubset &V, F f, intT threshold = -1
     V.toDense();
     free(degrees);
     free(frontierVertices);
-    bool* R = (option == DENSE_FORWARD) ? 
-      edgeMapDenseForward(GA,V.d,f) : 
-      edgeMapDense(GA, V.d, f, option);
+    bool* R = (option == DENSE_FORWARD) ? edgeMapDenseForward(GA,V.d,f) : edgeMapDense(GA, V.d, f, option);
     vertexSubset v1 = vertexSubset(numVertices, R);
-    //cout << "size (D) = " << v1.m << endl;
     return v1;
   } else { 
     pair<long,uintE*> R = 
       remDups ? 
-      edgeMapSparse(frontierVertices, V.s, degrees, V.numNonzeros(), f, 
-		    numVertices, GA.flags) :
+      edgeMapSparse(frontierVertices, V.s, degrees, V.numNonzeros(), f, numVertices, GA.flags) :
       edgeMapSparse(frontierVertices, V.s, degrees, V.numNonzeros(), f);
     //cout << "size (S) = " << R.first << endl;
     free(degrees);
@@ -146,7 +142,7 @@ vertexSubset edgeMap(graph<vertex> GA, vertexSubset &V, F f, intT threshold = -1
 //Note: this is the optimized version of vertexMap which does not
 //perform a filter
 template <class F>
-void vertexMap(vertexSubset V, F add) {
+void vertexMap(vertexSubset V, F& add) {
   long n = V.numRows(), m = V.numNonzeros();
   if(V.isDense) {
     {parallel_for(long i=0;i<n;i++)
@@ -176,13 +172,26 @@ inline bool cond_true (intT d) { return 1; }
 template<class vertex>
 void Compute(graph<vertex>&, commandLine);
 
-int parallel_main(int argc, char* argv[]) {
+ parallel_main(int argc, char* argv[]) {
   commandLine P(argc,argv," [-s] <inFile>");
   char* iFile = P.getArgument(0);
   bool symmetric = P.getOptionValue("-s");
   bool compressed = P.getOptionValue("-c");
   bool binary = P.getOptionValue("-b");
   long rounds = P.getOptionLongValue("-rounds",3);
+
+
+  graph<symmetricVertex> G =
+    readGraph<symmetricVertex>(iFile,compressed,symmetric,binary); //symmetric graph
+  Compute(G,P);
+  for(int r=0;r<rounds;r++) {
+    startTime();
+    Compute(G,P);
+    nextTime("Running time");
+  }
+  G.del();
+
+  /*
   if (compressed) {
     if (symmetric) {
       graph<compressedSymmetricVertex> G =
@@ -232,5 +241,6 @@ int parallel_main(int argc, char* argv[]) {
       G.del();
     }
   }
+  */
 }
 #endif

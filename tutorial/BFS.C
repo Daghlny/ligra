@@ -4,13 +4,13 @@ struct BFS_F {
   long* Parents;
   BFS_F(long* _Parents) : Parents(_Parents) {}
   inline bool updateAtomic (long s, long d){ //atomic version of Update
-    //FILL IN
+      return (CAS(&Parents[d], (long)-1, s));
   }
   inline bool update (long s, long d) { //Update
     return updateAtomic(s,d);
   }
   inline bool cond (long d) { 
-    //FILL IN
+      return (Parents[d] == -1);
   } 
 };
 
@@ -31,3 +31,4 @@ void Compute(graph<vertex>& GA, commandLine P) {
   Frontier.del();
   free(Parents); 
 }
+

@@ -39,7 +39,7 @@ struct BFS_F {
 
 template <class vertex>
 void Compute(graph<vertex>& GA, commandLine P) {
-  long start = P.getOptionLongValue("-r",0);
+  long start = P.getOptionLongValue("-r",0);// the start vertex ID, defaultly ID = 0
   long n = GA.n;
   //creates Parents array, initialized to all -1, except for start
   uintE* Parents = newA(uintE,n);
