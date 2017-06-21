@@ -34,7 +34,8 @@ PCFLAGS = -fopenmp -O3 -DOPENMP $(INTT) $(INTE) $(CODE) $(PD)
 
 else
 PCC = g++
-PCFLAGS = -O3 -std=c++11 $(INTT) $(INTE) $(CODE) $(PD)
+#PCFLAGS = -O0 -ggdb -std=c++11 $(INTT) $(INTE) $(CODE) $(PD)
+PCFLAGS = -O0 -ggdb -std=c++11 $(INTT) $(INTE) $(CODE) $(PD)
 
 endif
 

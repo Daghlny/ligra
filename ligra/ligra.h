@@ -178,7 +178,8 @@ void Compute(graph<vertex>&, commandLine);
   bool symmetric = P.getOptionValue("-s");
   bool compressed = P.getOptionValue("-c");
   bool binary = P.getOptionValue("-b");
-  long rounds = P.getOptionLongValue("-rounds",3);
+  
+  long rounds = P.getOptionLongValue("-rounds",1); // how many rounds will you run?
 
 
   graph<symmetricVertex> G =

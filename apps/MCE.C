@@ -724,8 +724,8 @@ struct MCE_V{
         int preNbrsBegin = 0;
         //tip: v's Neighbors has been sorted during constructor of Neighborhood
         memcpy(preNbrs, vers[v].getInNeighbors(), sizeof(vid) * prenum);
-        vector<int> preNbrsBeginStack;
-        preNbrsBeginStack.push_back(preNbrsBegin);
+        cout << "degree: " << degree << endl;
+        vector<int> preNbrsBeginStack(degree+2, 0);
         
 
         int top = 0;
@@ -741,29 +741,17 @@ struct MCE_V{
                 Rstack[top] = pivot;
                 vid pivotOldID = Nbh.original_id(pivot);
                 preNbrsBegin = UpdatePreNbrs(preNbrs, preNbrsBegin, prenum, pivotOldID);
-                preNbrsBeginStack.push_back(preNbrsBegin);
+                preNbrsBeginStack[top] = preNbrsBegin;
                 ++top;
             }
             else {
                 if (Xmat[top].all(0) && preNbrsBegin == prenum)
                 {
-                    //output clique in \Rstack
-                    //cout << "f" << endl;
-                    /*
-                    cout <<"v: " << v << " top: " << top << " clique: ";
-                    for (int it = 0; it < top; ++it)
-                        cout << Rstack[it] << " ";
-                    cout << endl;
-                    */
                     ++cliquenum;
                 }
                 --top;
-                if ( preNbrsBeginStack.size() != 0 )
-                {
-                    preNbrsBeginStack.erase(--preNbrsBeginStack.end());
-                    if ( preNbrsBeginStack.size() != 0 )
-                        preNbrsBegin = *(preNbrsBeginStack.end()-1);
-                }
+                if ( top > 0 )
+                    preNbrsBegin = preNbrsBeginStack[top-1];
             }
         }
         delete[] preNbrs;
