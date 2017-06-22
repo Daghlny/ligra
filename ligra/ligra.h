@@ -181,18 +181,6 @@ void Compute(graph<vertex>&, commandLine);
   
   long rounds = P.getOptionLongValue("-rounds",1); // how many rounds will you run?
 
-
-  graph<symmetricVertex> G =
-    readGraph<symmetricVertex>(iFile,compressed,symmetric,binary); //symmetric graph
-  Compute(G,P);
-  for(int r=0;r<rounds;r++) {
-    startTime();
-    Compute(G,P);
-    nextTime("Running time");
-  }
-  G.del();
-
-  /*
   if (compressed) {
     if (symmetric) {
       graph<compressedSymmetricVertex> G =
@@ -242,6 +230,5 @@ void Compute(graph<vertex>&, commandLine);
       G.del();
     }
   }
-  */
 }
 #endif
