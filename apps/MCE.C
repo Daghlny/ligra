@@ -2,7 +2,7 @@
 // author: yn
 
 #include "ligra.h"
-#include "ligrabitMatrix.hpp"
+#include "ligrabitMatrix.h"
 #include <sys/time.h>
 #include <assert.h>
 #include <cstdlib>
@@ -88,10 +88,6 @@ bitVector::setall(int flag)
     //elem_t eflag = flag == 0 ? ALLZERO : ALLONE;
     uint8_t bitflag = flag == 0 ? 0x00 : 0xff;
     memset(head, bitflag, sizeof(elem_t) * num);
-    /*
-    for (size_t i = 0; i < num; ++i)
-        head[i] = eflag;
-        */
 }
 
 /** \brief set the given index corresponding bit as given value. /
@@ -614,6 +610,9 @@ Neighborhood<vertex>::original_id(int idx)
     return lower[idx];
 }
 
+/** \brief get the given vertex's new id in degeneracy order
+ *  \param v is the given vertex
+ */
 template<class vertex> int
 Neighborhood<vertex>::mapped_id(vid v)
 {
@@ -686,6 +685,9 @@ struct MCE_V{
 
     MCE_V(vertex *V, uintE _n, uintE _t = 0):vers(V), n(_n), threshold(_t), cliquenum(0) {}
 
+    /** \brief this operator function is called by VertexMap in Ligra
+     *  \param v is the vertex
+     */
     inline bool operator()(uintE v){
         uintE degree = vers[v].getInDegree();
         threshold = 2;
@@ -702,30 +704,38 @@ struct MCE_V{
 
     }
 
+    /** \brief run BMBK algorithm in vertex v
+     *  \param v is the given vertex
+     *  \param degree is v's degree
+     */
     void runBMBK(uintE v, uintE degree)
     {
         cout << v << endl;
         typedef vid uintE;
-        vector<vid> Rstack(degree+2);
-        Neighborhood<vertex> Nbh(vers, v);
+        vector<vid> clique(degree+2);
+        Neighborhood<vertex> curr_vertex_neighborhood(vers, v);
 
-        /* \nbrnum is total number of vertex's neighbors
-         * \remain is the number of later neighbors of vertex 
-         * \prenum is the number of earlier neighbors of vertex */
-        vid nbrnum = degree;
-        vid remain = Nbh.laterNbrNum;
-        vid prenum = degree - remain;
+        /* \all_nbrs_num     is total number of vertex's neighbors
+         * \later_nbrs_num   is the number of later neighbors of vertex 
+         * \earlier_nbrs_num is the number of earlier neighbors of vertex */
+        vid all_nbrs_num = degree;
+        vid later_nbrs_num = curr_vertex_neighborhood.laterNbrNum;
+        vid earlier_nbrs_num = degree - later_nbrs_num;
         
-        bitMatrix Pmat(degree+2, remain);
-        bitMatrix Xmat(degree+2, remain);
+        /* \Pmat is the bitMatrix of CAND in BK algorithm
+         * \Xmat is the bitMatrix of NCAND in BK algorithm */
+        bitMatrix Pmat(degree+2, later_nbrs_num);
+        bitMatrix Xmat(degree+2, later_nbrs_num);
         Pmat[0].setall(1);
 
-        vid *preNbrs = new vid[prenum];
-        int preNbrsBegin = 0;
+        vid *earlier_nbrs = new vid[earlier_nbrs_num];
+        int earlier_nbrs_begin = 0;
         //tip: v's Neighbors has been sorted during constructor of Neighborhood
-        memcpy(preNbrs, vers[v].getInNeighbors(), sizeof(vid) * prenum);
-        cout << "degree: " << degree << endl;
-        vector<int> preNbrsBeginStack(degree+2, 0);
+        memcpy(earlier_nbrs, vers[v].getInNeighbors(), sizeof(vid) * earlier_nbrs_num);
+        //cout << "degree: " << degree << endl;
+        //int *earlier_nbrs_beginStack = new int[degree+2];
+        //memset(earlier_nbrs_beginStack, 0, sizeof(int)*(degree+2));
+        //vector<int> earlier_nbrs_beginStack(degree+2, 0);
         
 
         int top = 0;
@@ -736,51 +746,68 @@ struct MCE_V{
             {
                 Pmat[top].setbit(pivot, 0);
                 Xmat[top].setbit(pivot, 1);
-                Pmat[top+1].setWithBitAnd(Nbh[pivot], Pmat[top]);
-                Xmat[top+1].setWithBitAnd(Nbh[pivot], Xmat[top]);
-                Rstack[top] = pivot;
-                vid pivotOldID = Nbh.original_id(pivot);
-                preNbrsBegin = UpdatePreNbrs(preNbrs, preNbrsBegin, prenum, pivotOldID);
-                preNbrsBeginStack[top] = preNbrsBegin;
+                Pmat[top+1].setWithBitAnd(curr_vertex_neighborhood[pivot], Pmat[top]);
+                Xmat[top+1].setWithBitAnd(curr_vertex_neighborhood[pivot], Xmat[top]);
+                clique[top] = pivot;
+                vid pivot_old_id = curr_vertex_neighborhood.original_id(pivot);
+                earlier_nbrs_begin = UpdateEarlierNbrs(earlier_nbrs, earlier_nbrs_begin, earlier_nbrs_num, pivot_old_id);
+                //earlier_nbrs_beginStack[top] = earlier_nbrs_begin;
                 ++top;
             }
             else {
-                if (Xmat[top].all(0) && preNbrsBegin == prenum)
+                if (Xmat[top].all(0) && earlier_nbrs_begin == earlier_nbrs_num)
                 {
                     ++cliquenum;
                 }
                 --top;
                 if ( top > 0 )
-                    preNbrsBegin = preNbrsBeginStack[top-1];
+                    ;//earlier_nbrs_begin = earlier_nbrs_beginStack[top-1];
             }
         }
-        delete[] preNbrs;
+        delete[] earlier_nbrs;
+        //delete[] earlier_nbrs_beginStack;
     }
 
-    int UpdatePreNbrs(vid *preNbrs, int preNbrsBegin, vid prenum, vid pivot)
+    /** \brief intersect earlier neighbors with pivot's neighbors
+     *  \param earlier_nbrs are the pointer points to the earlier neighbors of current vertex
+     *  \param earlier_nbrs_begin is the begin index in earlier_nbrs
+     *  \param earlier_nbrs_num is the total number of vertices in earlier_nbrs
+     *  \param pivot is the neighbors of current vertex selected in this iteration
+     */
+    int UpdateEarlierNbrs(vid *earlier_nbrs, int earlier_nbrs_begin, vid earlier_nbrs_num, vid pivot)
     {
-        if (prenum == 0) return 0;
-        int newXpreBegin = prenum;
-        vid pivotDegree = vers[pivot].getInDegree();
-        vid *pivotNbv   = vers[pivot].getInNeighbors();
-        std::sort(preNbrs+preNbrsBegin, preNbrs+prenum);
-        for (int iter = 0; iter < pivotDegree; ++iter)
+        if (earlier_nbrs_num == 0) return 0;
+
+        int new_begin    = earlier_nbrs_num-1;  ///< the new begin index in earlier_nbrs
+        vid pivot_degree = vers[pivot].getInDegree();
+        vid *pivot_nbrs  = vers[pivot].getInNeighbors();
+
+        /// sort the earlier_nbrs partially to call binary search below
+        std::sort(earlier_nbrs + earlier_nbrs_begin, earlier_nbrs + earlier_nbrs_num);
+
+        for (int iter = 0; iter < pivot_degree; ++iter)
         {
             vid *ptr = nullptr;
-            if ( (ptr = this->NSearch(preNbrs, preNbrsBegin, newXpreBegin, pivotNbv[iter])) != nullptr)
+            if ( (ptr = this->BinarySearch(earlier_nbrs, earlier_nbrs_begin, new_begin, pivot_nbrs[iter])) != nullptr)
             {
-                --newXpreBegin;
-                if (newXpreBegin < 0)
-                    LOG("ERROR: newXpreBEgin(%d) is smaller than 0\n", newXpreBegin);
+                if (new_begin < 0)
+                    LOG("ERROR: newXpreBEgin(%d) is smaller than 0\n", new_begin);
                 vid tmp = *ptr;
-                *ptr = *(preNbrs+newXpreBegin);
-                *(preNbrs+newXpreBegin) = tmp;
+                *ptr = *(earlier_nbrs + new_begin);
+                *(earlier_nbrs + new_begin) = tmp;
+                --new_begin;
             }
         }
-        return newXpreBegin;
+        return new_begin+1;
     }
 
-    vid *NSearch(vid *arr, int beg, int end, vid val)
+    /** \brief search val in arr using binary search method
+     *  \param arr is the array
+     *  \param beg is begin index in arr
+     *  \param end is the end index in arr
+     *  \param val is the value to be searched
+     */
+    vid *BinarySearch(vid *arr, int beg, int end, vid val)
     {
         int mid = 0;
         while( beg <= end )
@@ -805,6 +832,7 @@ void Compute(graph<vertex>& GA, commandLine P){
     uintE *indices = new uintE[n];
     {parallel_for(int i = 0; i < n; ++i) indices[i] = i;}
 
+    /// all vertices in this Frontier
     vertexSubset Frontier(n, n, indices);
 
     MCE_V<vertex> mcev(GA.V, GA.n);
