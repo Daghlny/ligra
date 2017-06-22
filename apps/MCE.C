@@ -550,7 +550,16 @@ template<class vertex>
 Neighborhood<vertex>::Neighborhood(vertex *vers, vid _v):
     bitMatrix(), v(_v)
 {
-    nbeg = vers[v].getInNeighbors();
+    alloc_mem_flag = false; ///< the flag records whether allocate memory to nbeg
+    if (sizeof(*vers[v].getInNeighbors()) < 4)
+    {
+        alloc_mem_flag = true;
+        nbeg = new vid[vers[v].getInDegree()];
+        for (int i = 0; i < vers[v].getInDegree(); ++i)
+            nbeg[i] = static_cast<vid>(vers[v].getInNeighbor(i));
+    }
+    if(!alloc_mem_flag)
+        nbeg = (vid*)(vers[v].getInNeighbors());
     nodenum = vers[v].getInDegree();
     nend = nbeg + nodenum;
 
@@ -568,15 +577,11 @@ Neighborhood<vertex>::Neighborhood(vertex *vers, vid _v):
     assign_rows(vers);
 }
 
-template<class vertex> void
-Neighborhood<vertex>::Nreset(vertex *vers, vid _v)
-{
-}
 
 /** \brief assign every row of Neighborhood the intersection between /
  *         the neighbor and vertex @v. The neighbors whose id are smaller /
  *         than @v will only get all "0", because their rows will never used.
- *  \param g graph
+ *  \param vers is the array of Ligra vertex list
  */
 template<class vertex> void
 Neighborhood<vertex>::assign_rows( vertex *vers )
@@ -587,7 +592,18 @@ Neighborhood<vertex>::assign_rows( vertex *vers )
     for ( size_t inbr = later; (vid)inbr < nodenum && cnt < laterNbrNum; ++inbr, cnt++ )
     {
         vid nbr = nbeg[inbr];
-        vid *nbrnbv = vers[nbr].getInNeighbors();
+
+        vid *nbrnbv = nullptr;
+        bool nbr_alloc_flag = false;
+        if (sizeof(*vers[v].getInNeighbors()) < 4)
+        {
+            nbr_alloc_flag = true;
+            nbrnbv = new vid[vers[nbr].getInDegree()];
+            for (int i = 0; i < vers[nbr].getInDegree(); ++i)
+                nbrnbv[i] = static_cast<vid>(vers[v].getInNeighbor(i));
+        }
+        if ( !nbr_alloc_flag )
+            nbrnbv = (vid*)vers[nbr].getInNeighbors();
         vid nbrdeg  = vers[nbr].getInDegree();
 
         for (int inbrnbr = 0; inbrnbr < nbrdeg; ++inbrnbr)
@@ -597,6 +613,9 @@ Neighborhood<vertex>::assign_rows( vertex *vers )
             if ( pos >= 0 )
                 rows[cnt].setbit(pos, 1);
         }
+
+        if ( nbr_alloc_flag )
+            delete[] nbrnbv;
         
     }
 }
@@ -650,6 +669,13 @@ Neighborhood<vertex>::binary_search(vid v )
     return -1;
 }
 
+template<class vertex> 
+Neighborhood<vertex>::~Neighborhood()
+{
+    if(alloc_mem_flag)
+        delete[] nbeg;
+}
+
 
 
 /*********************************************************
@@ -692,6 +718,8 @@ struct MCE_V{
         uintE degree = vers[v].getInDegree();
         threshold = 2;
         if ( degree < threshold ){
+            if (degree == 1 || vers[v].getInNeighbor(0) < v)
+                return true;
             cliquenum++;
             //this->runNaiveBK(v, degree);
         } else
@@ -733,8 +761,8 @@ struct MCE_V{
         //tip: v's Neighbors has been sorted during constructor of Neighborhood
         memcpy(earlier_nbrs, vers[v].getInNeighbors(), sizeof(vid) * earlier_nbrs_num);
         //cout << "degree: " << degree << endl;
-        //int *earlier_nbrs_beginStack = new int[degree+2];
-        //memset(earlier_nbrs_beginStack, 0, sizeof(int)*(degree+2));
+        int *earlier_nbrs_beginStack = new int[degree+2];
+        memset(earlier_nbrs_beginStack, 0, sizeof(int)*(degree+2));
         //vector<int> earlier_nbrs_beginStack(degree+2, 0);
         
 
@@ -751,7 +779,7 @@ struct MCE_V{
                 clique[top] = pivot;
                 vid pivot_old_id = curr_vertex_neighborhood.original_id(pivot);
                 earlier_nbrs_begin = UpdateEarlierNbrs(earlier_nbrs, earlier_nbrs_begin, earlier_nbrs_num, pivot_old_id);
-                //earlier_nbrs_beginStack[top] = earlier_nbrs_begin;
+                earlier_nbrs_beginStack[top] = earlier_nbrs_begin;
                 ++top;
             }
             else {
@@ -761,11 +789,11 @@ struct MCE_V{
                 }
                 --top;
                 if ( top > 0 )
-                    ;//earlier_nbrs_begin = earlier_nbrs_beginStack[top-1];
+                    earlier_nbrs_begin = earlier_nbrs_beginStack[top-1];
             }
         }
         delete[] earlier_nbrs;
-        //delete[] earlier_nbrs_beginStack;
+        delete[] earlier_nbrs_beginStack;
     }
 
     /** \brief intersect earlier neighbors with pivot's neighbors
@@ -780,7 +808,18 @@ struct MCE_V{
 
         int new_begin    = earlier_nbrs_num-1;  ///< the new begin index in earlier_nbrs
         vid pivot_degree = vers[pivot].getInDegree();
-        vid *pivot_nbrs  = vers[pivot].getInNeighbors();
+        vid *pivot_nbrs = nullptr;
+
+        bool pivot_alloc_flag = false;
+        if (sizeof(*vers[pivot].getInNeighbors()) < 4)
+        {
+            pivot_alloc_flag = true;
+            pivot_nbrs = new vid[vers[pivot].getInDegree()];
+            for (int i = 0; i < vers[pivot].getInDegree(); ++i)
+                pivot_nbrs[i] = static_cast<vid>(vers[pivot].getInNeighbor(i));
+        }
+        if ( !pivot_alloc_flag )
+            pivot_nbrs = (vid*)vers[pivot].getInNeighbors();
 
         /// sort the earlier_nbrs partially to call binary search below
         std::sort(earlier_nbrs + earlier_nbrs_begin, earlier_nbrs + earlier_nbrs_num);
@@ -798,6 +837,8 @@ struct MCE_V{
                 --new_begin;
             }
         }
+        if (pivot_alloc_flag)
+            delete[] pivot_nbrs;
         return new_begin+1;
     }
 

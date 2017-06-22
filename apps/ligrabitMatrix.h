@@ -135,10 +135,10 @@ class Neighborhood: public bitMatrix
 {
     public:
         Neighborhood(vertex *vers, vid v);
-        void Nreset( vertex *vers, vid v);
         vid original_id(int idx);
         int mapped_id(vid v);
         vid get_nodenum();
+        ~Neighborhood();
 
         size_t laterNbrNum;  // number of Later Neighbors
 
@@ -152,6 +152,7 @@ class Neighborhood: public bitMatrix
         vid *nend;          // out-of-range end iterator of adjlist
         vid *lower;         // Later Neighbors' begin iter of v
         vid nodenum;        // total number of neighbors of v
+        bool alloc_mem_flag;
         size_t later;       // index of the begin of later neighbors in vertex.nbv
         map<vid, int> dict;
 };
