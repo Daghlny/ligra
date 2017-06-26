@@ -54,7 +54,7 @@ typedef uint8_t elem_t;
 #define LOG(fmt, ...) \
     printf("%s | L:%4d | %s() |: " fmt, strrchr(__FILE__, '/')+1, __LINE__, __FUNCTION__, ##__VA_ARGS__)
 
-typedef uintE vid;
+typedef uintE vid_t;
 using std::vector;
 using std::string;
 using std::list;
@@ -134,27 +134,27 @@ template<class vertex>
 class Neighborhood: public bitMatrix
 {
     public:
-        Neighborhood(vertex *vers, vid v);
-        vid original_id(int idx);
-        int mapped_id(vid v);
-        vid get_nodenum();
+        Neighborhood(vertex *vers, vid_t v);
+        vid_t original_id(int idx);
+        int mapped_id(vid_t v);
+        vid_t get_nodenum();
         ~Neighborhood();
 
         size_t laterNbrNum;  // number of Later Neighbors
 
     private:
-        void twoAdjlistAND(vid *lower, vid *nb, int index);
+        void twoAdjlistAND(vid_t *lower, vid_t *nb, int index);
         void assign_rows(vertex *vers);
-        int  binary_search(vid v);
+        int  binary_search(vid_t v);
 
-        vid v;              // v's original ID
-        vid *nbeg;          // begin iterator of adjlist
-        vid *nend;          // out-of-range end iterator of adjlist
-        vid *lower;         // Later Neighbors' begin iter of v
-        vid nodenum;        // total number of neighbors of v
+        vid_t v;              // v's original ID
+        vid_t *nbeg;          // begin iterator of adjlist
+        vid_t *nend;          // out-of-range end iterator of adjlist
+        vid_t *lower;         // Later Neighbors' begin iter of v
+        vid_t nodenum;        // total number of neighbors of v
         bool alloc_mem_flag;
         size_t later;       // index of the begin of later neighbors in vertex.nbv
-        map<vid, int> dict;
+        map<vid_t, int> dict;
 };
 
 #endif

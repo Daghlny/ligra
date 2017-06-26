@@ -2,7 +2,7 @@
 // author: yn
 
 #include "ligra.h"
-#include "ligrabitMatrix.h"
+#include "LigraMCETool.h"
 #include <sys/time.h>
 #include <assert.h>
 #include <cstdlib>
@@ -15,11 +15,15 @@
 #include <bitset>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <map>
 #include <vector>
 #include <list>
 #include <utility>
 #include <algorithm>
+
+#define CLIQUE_FILE "./clique.result.txt"
+//#define WRITE_CLIQUE
 
 using std::cout;
 using std::endl;
@@ -547,19 +551,19 @@ bitMatrix::print()
  *  \param _v the vertex of Neighborhood
  */
 template<class vertex>
-Neighborhood<vertex>::Neighborhood(vertex *vers, vid _v):
+Neighborhood<vertex>::Neighborhood(vertex *vers, vid_t _v):
     bitMatrix(), v(_v)
 {
     alloc_mem_flag = false; ///< the flag records whether allocate memory to nbeg
     if (sizeof(*vers[v].getInNeighbors()) < 4)
     {
         alloc_mem_flag = true;
-        nbeg = new vid[vers[v].getInDegree()];
+        nbeg = new vid_t[vers[v].getInDegree()];
         for (int i = 0; i < vers[v].getInDegree(); ++i)
-            nbeg[i] = static_cast<vid>(vers[v].getInNeighbor(i));
+            nbeg[i] = static_cast<vid_t>(vers[v].getInNeighbor(i));
     }
     if(!alloc_mem_flag)
-        nbeg = (vid*)(vers[v].getInNeighbors());
+        nbeg = (vid_t*)(vers[v].getInNeighbors());
     nodenum = vers[v].getInDegree();
     nend = nbeg + nodenum;
 
@@ -589,22 +593,22 @@ Neighborhood<vertex>::assign_rows( vertex *vers )
     size_t cnt = 0;
     // @cnt  is the mapped id in Neighborhood
     // @inbr is the index in vertex.nbv
-    for ( size_t inbr = later; (vid)inbr < nodenum && cnt < laterNbrNum; ++inbr, cnt++ )
+    for ( size_t inbr = later; (vid_t)inbr < nodenum && cnt < laterNbrNum; ++inbr, cnt++ )
     {
-        vid nbr = nbeg[inbr];
+        vid_t nbr = nbeg[inbr];
 
-        vid *nbrnbv = nullptr;
+        vid_t *nbrnbv = nullptr;
         bool nbr_alloc_flag = false;
         if (sizeof(*vers[v].getInNeighbors()) < 4)
         {
             nbr_alloc_flag = true;
-            nbrnbv = new vid[vers[nbr].getInDegree()];
+            nbrnbv = new vid_t[vers[nbr].getInDegree()];
             for (int i = 0; i < vers[nbr].getInDegree(); ++i)
-                nbrnbv[i] = static_cast<vid>(vers[v].getInNeighbor(i));
+                nbrnbv[i] = static_cast<vid_t>(vers[v].getInNeighbor(i));
         }
         if ( !nbr_alloc_flag )
-            nbrnbv = (vid*)vers[nbr].getInNeighbors();
-        vid nbrdeg  = vers[nbr].getInDegree();
+            nbrnbv = (vid_t*)vers[nbr].getInNeighbors();
+        vid_t nbrdeg  = vers[nbr].getInDegree();
 
         for (int inbrnbr = 0; inbrnbr < nbrdeg; ++inbrnbr)
         {
@@ -623,7 +627,7 @@ Neighborhood<vertex>::assign_rows( vertex *vers )
 /** \brief use the index in Neighborhood to get the vertex original ID
  *  \param idx the mapped id in @data of Neighborhood
  */
-template<class vertex> vid
+template<class vertex> vid_t
 Neighborhood<vertex>::original_id(int idx)
 {
     return lower[idx];
@@ -633,9 +637,9 @@ Neighborhood<vertex>::original_id(int idx)
  *  \param v is the given vertex
  */
 template<class vertex> int
-Neighborhood<vertex>::mapped_id(vid v)
+Neighborhood<vertex>::mapped_id(vid_t v)
 {
-    vid *fpos = std::find(lower, nend, v);
+    vid_t *fpos = std::find(lower, nend, v);
     if ( fpos == nend )
         return -1;
     else
@@ -644,14 +648,14 @@ Neighborhood<vertex>::mapped_id(vid v)
 
 /** \brief the total number of neighbors of v
  */
-template<class vertex> vid
+template<class vertex> vid_t
 Neighborhood<vertex>::get_nodenum()
 {
     return this->nodenum;
 }
 
 template<class vertex> int
-Neighborhood<vertex>::binary_search(vid v )
+Neighborhood<vertex>::binary_search(vid_t v )
 {
     int low = later;
     //int high = static_cast<int>(nend - nbeg);
@@ -675,8 +679,6 @@ Neighborhood<vertex>::~Neighborhood()
     if(alloc_mem_flag)
         delete[] nbeg;
 }
-
-
 
 /*********************************************************
  *********************************************************
@@ -739,16 +741,19 @@ struct MCE_V{
     void runBMBK(uintE v, uintE degree)
     {
         cout << v << endl;
-        typedef vid uintE;
-        vector<vid> clique(degree+2);
+
+#ifdef WRITE_CLIQUE
+        std::ofstream resultFile(CLIQUE_FILE);
+#endif
+        vector<vid_t> clique(degree+2);
         Neighborhood<vertex> curr_vertex_neighborhood(vers, v);
 
         /* \all_nbrs_num     is total number of vertex's neighbors
          * \later_nbrs_num   is the number of later neighbors of vertex 
          * \earlier_nbrs_num is the number of earlier neighbors of vertex */
-        vid all_nbrs_num = degree;
-        vid later_nbrs_num = curr_vertex_neighborhood.laterNbrNum;
-        vid earlier_nbrs_num = degree - later_nbrs_num;
+        vid_t all_nbrs_num = degree;
+        vid_t later_nbrs_num = curr_vertex_neighborhood.laterNbrNum;
+        vid_t earlier_nbrs_num = degree - later_nbrs_num;
         
         /* \Pmat is the bitMatrix of CAND in BK algorithm
          * \Xmat is the bitMatrix of NCAND in BK algorithm */
@@ -756,10 +761,10 @@ struct MCE_V{
         bitMatrix Xmat(degree+2, later_nbrs_num);
         Pmat[0].setall(1);
 
-        vid *earlier_nbrs = new vid[earlier_nbrs_num];
+        vid_t *earlier_nbrs = new vid_t[earlier_nbrs_num];
         int earlier_nbrs_begin = 0;
         //tip: v's Neighbors has been sorted during constructor of Neighborhood
-        memcpy(earlier_nbrs, vers[v].getInNeighbors(), sizeof(vid) * earlier_nbrs_num);
+        memcpy(earlier_nbrs, vers[v].getInNeighbors(), sizeof(vid_t) * earlier_nbrs_num);
         //cout << "degree: " << degree << endl;
         int *earlier_nbrs_beginStack = new int[degree+2];
         memset(earlier_nbrs_beginStack, 0, sizeof(int)*(degree+2));
@@ -777,7 +782,7 @@ struct MCE_V{
                 Pmat[top+1].setWithBitAnd(curr_vertex_neighborhood[pivot], Pmat[top]);
                 Xmat[top+1].setWithBitAnd(curr_vertex_neighborhood[pivot], Xmat[top]);
                 clique[top] = pivot;
-                vid pivot_old_id = curr_vertex_neighborhood.original_id(pivot);
+                vid_t pivot_old_id = curr_vertex_neighborhood.original_id(pivot);
                 earlier_nbrs_begin = UpdateEarlierNbrs(earlier_nbrs, earlier_nbrs_begin, earlier_nbrs_num, pivot_old_id);
                 earlier_nbrs_beginStack[top] = earlier_nbrs_begin;
                 ++top;
@@ -785,11 +790,20 @@ struct MCE_V{
             else {
                 if (Xmat[top].all(0) && earlier_nbrs_begin == earlier_nbrs_num)
                 {
+#ifdef WRITE_CLIQUE
+                    // under coding
+                    resultFile << d.re(v);
+                    for (int itr = 0; itr < top; ++itr)
+                        resultFile << " " << d.re
+                    resultFile << endl;
+#endif
                     ++cliquenum;
                 }
                 --top;
                 if ( top > 0 )
                     earlier_nbrs_begin = earlier_nbrs_beginStack[top-1];
+                else if (top == 0)
+                    earlier_nbrs_begin = 0;
             }
         }
         delete[] earlier_nbrs;
@@ -802,36 +816,39 @@ struct MCE_V{
      *  \param earlier_nbrs_num is the total number of vertices in earlier_nbrs
      *  \param pivot is the neighbors of current vertex selected in this iteration
      */
-    int UpdateEarlierNbrs(vid *earlier_nbrs, int earlier_nbrs_begin, vid earlier_nbrs_num, vid pivot)
+    int UpdateEarlierNbrs(vid_t *earlier_nbrs, int earlier_nbrs_begin, vid_t earlier_nbrs_num, vid_t pivot)
     {
         if (earlier_nbrs_num == 0) return 0;
 
         int new_begin    = earlier_nbrs_num-1;  ///< the new begin index in earlier_nbrs
-        vid pivot_degree = vers[pivot].getInDegree();
-        vid *pivot_nbrs = nullptr;
+        vid_t pivot_degree = vers[pivot].getInDegree();
+        vid_t *pivot_nbrs = nullptr;
 
+        /* this section is used to adapt different types getInNeighbors() returns */
         bool pivot_alloc_flag = false;
         if (sizeof(*vers[pivot].getInNeighbors()) < 4)
         {
             pivot_alloc_flag = true;
-            pivot_nbrs = new vid[vers[pivot].getInDegree()];
+            pivot_nbrs = new vid_t[vers[pivot].getInDegree()];
             for (int i = 0; i < vers[pivot].getInDegree(); ++i)
-                pivot_nbrs[i] = static_cast<vid>(vers[pivot].getInNeighbor(i));
+                pivot_nbrs[i] = static_cast<vid_t>(vers[pivot].getInNeighbor(i));
         }
         if ( !pivot_alloc_flag )
-            pivot_nbrs = (vid*)vers[pivot].getInNeighbors();
+            pivot_nbrs = (vid_t*)vers[pivot].getInNeighbors();
+        /* section end */
 
         /// sort the earlier_nbrs partially to call binary search below
         std::sort(earlier_nbrs + earlier_nbrs_begin, earlier_nbrs + earlier_nbrs_num);
 
         for (int iter = 0; iter < pivot_degree; ++iter)
         {
-            vid *ptr = nullptr;
+            vid_t *ptr = nullptr;
+            std::sort(earlier_nbrs + earlier_nbrs_begin, earlier_nbrs + new_begin + 1);
             if ( (ptr = this->BinarySearch(earlier_nbrs, earlier_nbrs_begin, new_begin, pivot_nbrs[iter])) != nullptr)
             {
                 if (new_begin < 0)
                     LOG("ERROR: newXpreBEgin(%d) is smaller than 0\n", new_begin);
-                vid tmp = *ptr;
+                vid_t tmp = *ptr;
                 *ptr = *(earlier_nbrs + new_begin);
                 *(earlier_nbrs + new_begin) = tmp;
                 --new_begin;
@@ -842,13 +859,13 @@ struct MCE_V{
         return new_begin+1;
     }
 
-    /** \brief search val in arr using binary search method
+    /** \brief search val in arr using binary search method in the range [beg, end]
      *  \param arr is the array
      *  \param beg is begin index in arr
      *  \param end is the end index in arr
      *  \param val is the value to be searched
      */
-    vid *BinarySearch(vid *arr, int beg, int end, vid val)
+    vid_t *BinarySearch(vid_t *arr, int beg, int end, vid_t val)
     {
         int mid = 0;
         while( beg <= end )

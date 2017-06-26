@@ -46,8 +46,11 @@ ALL=MCE
 
 all: $(ALL)
 
+LigraMCETool.o: LigraMCETool.cpp LigraMCETool.h
+	$(PCC) $(PCFLAGS) LigraMCETool.cpp -c -o $@
+
 % : %.C $(COMMON)
-	$(PCC) $(PCFLAGS) -o $@ $< 
+	$(PCC) $(PCFLAGS) -o $@ $<
 
 $(COMMON):
 	ln -s ../ligra/$@ .
