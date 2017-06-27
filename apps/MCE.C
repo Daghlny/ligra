@@ -720,8 +720,13 @@ struct MCE_V{
         uintE degree = vers[v].getInDegree();
         threshold = 2;
         if ( degree < threshold ){
-            if (degree == 1 || vers[v].getInNeighbor(0) < v)
+            if (degree == 1 && vers[v].getInNeighbor(0) < v)
                 return true;
+            else
+            {
+#ifdef WRITE_CLIQUE
+#endif
+            }
             cliquenum++;
             //this->runNaiveBK(v, degree);
         } else
@@ -745,18 +750,19 @@ struct MCE_V{
 #ifdef WRITE_CLIQUE
         std::ofstream resultFile(CLIQUE_FILE);
 #endif
+
         vector<vid_t> clique(degree+2);
-        Neighborhood<vertex> curr_vertex_neighborhood(vers, v);
+        Neighborhood<vertex> curr_neighborhood(vers, v);
 
         /* \all_nbrs_num     is total number of vertex's neighbors
          * \later_nbrs_num   is the number of later neighbors of vertex 
          * \earlier_nbrs_num is the number of earlier neighbors of vertex */
         vid_t all_nbrs_num = degree;
-        vid_t later_nbrs_num = curr_vertex_neighborhood.laterNbrNum;
+        vid_t later_nbrs_num = curr_neighborhood.laterNbrNum;
         vid_t earlier_nbrs_num = degree - later_nbrs_num;
         
         /* \Pmat is the bitMatrix of CAND in BK algorithm
-         * \Xmat is the bitMatrix of NCAND in BK algorithm */
+         * \Xmat is the bitMatrix of part of NCAND in BK algorithm */
         bitMatrix Pmat(degree+2, later_nbrs_num);
         bitMatrix Xmat(degree+2, later_nbrs_num);
         Pmat[0].setall(1);
@@ -766,10 +772,7 @@ struct MCE_V{
         //tip: v's Neighbors has been sorted during constructor of Neighborhood
         memcpy(earlier_nbrs, vers[v].getInNeighbors(), sizeof(vid_t) * earlier_nbrs_num);
         //cout << "degree: " << degree << endl;
-        int *earlier_nbrs_beginStack = new int[degree+2];
-        memset(earlier_nbrs_beginStack, 0, sizeof(int)*(degree+2));
-        //vector<int> earlier_nbrs_beginStack(degree+2, 0);
-        
+        vector<int> earlier_nbrs_beginStack(degree+2, 0);
 
         int top = 0;
         while(top >= 0)
@@ -779,10 +782,10 @@ struct MCE_V{
             {
                 Pmat[top].setbit(pivot, 0);
                 Xmat[top].setbit(pivot, 1);
-                Pmat[top+1].setWithBitAnd(curr_vertex_neighborhood[pivot], Pmat[top]);
-                Xmat[top+1].setWithBitAnd(curr_vertex_neighborhood[pivot], Xmat[top]);
+                Pmat[top+1].setWithBitAnd(curr_neighborhood[pivot], Pmat[top]);
+                Xmat[top+1].setWithBitAnd(curr_neighborhood[pivot], Xmat[top]);
                 clique[top] = pivot;
-                vid_t pivot_old_id = curr_vertex_neighborhood.original_id(pivot);
+                vid_t pivot_old_id = curr_neighborhood.original_id(pivot);
                 earlier_nbrs_begin = UpdateEarlierNbrs(earlier_nbrs, earlier_nbrs_begin, earlier_nbrs_num, pivot_old_id);
                 earlier_nbrs_beginStack[top] = earlier_nbrs_begin;
                 ++top;
@@ -792,9 +795,9 @@ struct MCE_V{
                 {
 #ifdef WRITE_CLIQUE
                     // under coding
-                    resultFile << d.re(v);
+                    resultFile << v;
                     for (int itr = 0; itr < top; ++itr)
-                        resultFile << " " << d.re
+                        resultFile << " " << curr_neighborhood.original_id(clique[itr]);
                     resultFile << endl;
 #endif
                     ++cliquenum;
@@ -807,7 +810,6 @@ struct MCE_V{
             }
         }
         delete[] earlier_nbrs;
-        delete[] earlier_nbrs_beginStack;
     }
 
     /** \brief intersect earlier neighbors with pivot's neighbors
@@ -821,6 +823,9 @@ struct MCE_V{
         if (earlier_nbrs_num == 0) return 0;
 
         int new_begin    = earlier_nbrs_num-1;  ///< the new begin index in earlier_nbrs
+        /// sort the earlier_nbrs partially to call binary search below
+        std::sort(earlier_nbrs + earlier_nbrs_begin, earlier_nbrs + earlier_nbrs_num);
+
         vid_t pivot_degree = vers[pivot].getInDegree();
         vid_t *pivot_nbrs = nullptr;
 
@@ -837,9 +842,6 @@ struct MCE_V{
             pivot_nbrs = (vid_t*)vers[pivot].getInNeighbors();
         /* section end */
 
-        /// sort the earlier_nbrs partially to call binary search below
-        std::sort(earlier_nbrs + earlier_nbrs_begin, earlier_nbrs + earlier_nbrs_num);
-
         for (int iter = 0; iter < pivot_degree; ++iter)
         {
             vid_t *ptr = nullptr;
@@ -849,13 +851,15 @@ struct MCE_V{
                 if (new_begin < 0)
                     LOG("ERROR: newXpreBEgin(%d) is smaller than 0\n", new_begin);
                 vid_t tmp = *ptr;
-                *ptr = *(earlier_nbrs + new_begin);
-                *(earlier_nbrs + new_begin) = tmp;
+                *ptr = earlier_nbrs[new_begin];
+                earlier_nbrs[new_begin] = tmp;
                 --new_begin;
             }
         }
+
         if (pivot_alloc_flag)
             delete[] pivot_nbrs;
+
         return new_begin+1;
     }
 
